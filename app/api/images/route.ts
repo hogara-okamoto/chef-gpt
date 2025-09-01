@@ -1,13 +1,15 @@
 import OpenAI from "openai";
+import { NextResponse } from "next/server";
+export const runtime = "edge";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const runtime = "edge";
+type ImageRequestBody = { message: string };
 
 export async function POST(req: Request) {
-  const { message } = await req.json();
+  const { message } = (await req.json()) as ImageRequestBody;
   const prompt = `Generate an image that describes the following recipe: ${message}`;
   const response = await openai.images.generate({
     model: "gpt-image-1",
