@@ -5,56 +5,116 @@ import { useChat } from "@ai-sdk/react";
 // If you want to specify the endpoint explicitly, you can pass a transport.
 // import { DefaultChatTransport } from "ai";
 
+type AnyPart = { type: string; text?: string };
+type TextPart = { type: 'text'; text: string };
+
+const isTextPart = (p: AnyPart): p is TextPart =>
+  p.type === 'text' && typeof p.text === 'string';
+
+// helper: turn a v5 message into plain text
+const getMessageText = (m: { parts: { type: string; text?: string }[] }) =>
+  m.parts
+    .filter((p) => p.type === "text" && typeof p.text === "string")
+    .map((p) => p.text as string)
+    .join("\n");
+
+
 export default function Chat() {
-  const { messages, sendMessage, status, error } = useChat({
-    // transport: new DefaultChatTransport({ api: "/api/chat" }),
-  });
-
-  const [input, setInput] = useState("");
-
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  // auto-scroll to bottom when messages change
-  useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
-
+  const { messages, status, sendMessage, error } = useChat();
   const isLoading = status !== "ready";
-
+  const [imageIsLoading, setImageIsLoading] = useState(false);
+  const [image, setImage] = useState<string | null>(null);
+  const [audioIsLoading, setAudioIsLoading] = useState(false);
+  const [audio, setAudio] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+  if (imageIsLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="loader">
+          <div className="animate-pulse flex space-x-4">
+            <div className="rounded-full bg-slate-700 h-10 w-10"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // Show image above chat messages if it exists
+  const imageSection = image && (
+    <div className="flex flex-col items-center gap-4 mb-4">
+      <img src={`data:image/jpeg;base64,${image}`} className="max-w-full h-auto rounded-lg shadow-lg" />
+      <div className="flex flex-col justify-center items-center">
+        {audio && (
+          <>
+            <p className="text-sm text-gray-600 mb-2">Listen to the recipe:</p>
+            <audio controls src={audio} className="w-full max-w-md" />
+          </>
+        )}
+        {audioIsLoading && !audio && <p className="text-sm text-gray-600">Audio is being generated...</p>}
+        {!audioIsLoading && !audio && (
+          <button
+            className="bg-blue-500 p-2 text-white rounded shadow-xl hover:bg-blue-600 transition-colors"
+            onClick={async () => {
+              setAudioIsLoading(true);
+              const response = await fetch("/api/audio", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  message: messages.length ? getMessageText(messages[messages.length - 1]) : "",
+                }),
+              });
+              const audioBlob = await response.blob();
+              const audioUrl = URL.createObjectURL(audioBlob);
+              setAudio(audioUrl);
+              setAudioIsLoading(false);
+            }}
+          >
+            Generate Audio
+          </button>
+        )}
+      </div>
+    </div>
+  );
   return (
-    <div className="flex flex-col w-full h-screen max-w-md py-24 mx-auto overflow-hidden">
-      <div className="overflow-auto w-full mb-8" ref={messagesContainerRef}>
+    <div className="flex flex-col w-full h-screen max-w-md py-16 mx-auto stretch overflow-hidden">
+      {imageSection}
+      <div
+        className="overflow-auto w-full mb-8 flex-1 min-h-96"
+        ref={messagesContainerRef}
+      >
         {messages.map((m) => (
           <div
             key={m.id}
             className={`whitespace-pre-wrap ${
               m.role === "user"
-                ? "bg-green-100 p-3 m-2 rounded-lg"
-                : "bg-slate-100 p-3 m-2 rounded-lg"
+                ? "bg-green-300 p-4 m-3 rounded-lg text-sm"
+                : "bg-slate-300 p-4 m-3 rounded-lg text-sm leading-relaxed"
             }`}
           >
             {m.role === "user" ? "User: " : "AI: "}
-            {/* v5: render message.parts */}
-            {m.parts.map((part, i) =>
-              part.type === "text" ? <span key={i}>{part.text}</span> : null
-            )}
+            {m.parts.map((p, i) => (p.type === "text" ? <span key={i}>{p.text}</span> : null))}
           </div>
         ))}
-
         {isLoading && (
           <div className="flex justify-end pr-4">
             <span className="animate-pulse text-2xl">...</span>
           </div>
         )}
-
-        {error && (
-          <div className="text-red-400 px-4">Error: {String(error)}</div>
-        )}
       </div>
-
-      <div className="fixed bottom-0 w-full max-w-md">
-        <div className="flex flex-col justify-center mb-2 items-center">
+      {messages.length == 0 && (
+        <div className="flex flex-col justify-center items-center h-full">
+          <img 
+            src="/images/chef.png" 
+            alt="Friendly Chef" 
+            className="w-32 h-32 mb-4 rounded-lg shadow-lg"
+          />
           <button
             className="bg-blue-500 p-2 text-white rounded shadow-xl"
             disabled={isLoading}
@@ -63,26 +123,40 @@ export default function Chat() {
             Random Recipe
           </button>
         </div>
+      )}
+      
+      {messages.length > 0 && (
+        <div className="fixed bottom-0 w-full max-w-md">
+          <div className="flex flex-col justify-center mb-2 items-center">
+            {messages.length == 2 && !isLoading && !image && (
+              <button
+                className="bg-blue-500 p-2 text-white rounded shadow-xl"
+                disabled={isLoading}
+                onClick={async () => {
+                  setImageIsLoading(true);
+                  const last = messages[messages.length - 1];
+                  const lastText = last ? getMessageText(last) : "";
 
-        <form
-          className="flex justify-center"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const text = input.trim();
-            if (!text) return;
-            sendMessage({ text });
-            setInput("");
-          }}
-        >
-          <input
-            className="w-[95%] p-2 mb-8 border border-gray-300 rounded shadow-xl text-black"
-            value={input}
-            placeholder="Say something..."
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
-          />
-        </form>
-      </div>
+                  const response = await fetch("api/images", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      message: lastText,
+                    }),
+                  });
+                  const data = await response.json();
+                  setImage(data);
+                  setImageIsLoading(false);
+                }}
+              >
+                Generate image
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
