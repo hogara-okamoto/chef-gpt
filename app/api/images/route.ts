@@ -20,6 +20,9 @@ export async function POST(req: Request) {
     output_compression: 60,   // 0-100 (lower = smaller)
     n: 1,
   });
-    const imageBase64 = (response.data as any)[0].b64_json;
-    return new Response(JSON.stringify(imageBase64));
+    const b64 = response.data?.[0]?.b64_json; // ✅ no "as any"
+    if (!b64) {
+      return NextResponse.json({ error: "No image generated" }, { status: 500 });
+    }
+    return NextResponse.json(b64);
 }
