@@ -22,6 +22,15 @@ export default function Chat() {
   const [audioIsLoading, setAudioIsLoading] = useState(false);
   const [audio, setAudio] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Cleanup audio URL when component unmounts or audio changes
+  useEffect(() => {
+    return () => {
+      if (audio) {
+        URL.revokeObjectURL(audio);
+      }
+    };
+  }, [audio]);
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
@@ -53,7 +62,13 @@ export default function Chat() {
         {audio && (
           <>
             <p className="text-sm text-gray-600 mb-2">Listen to the recipe:</p>
-            <audio controls src={audio} className="w-full max-w-md" />
+            <audio 
+              controls 
+              src={audio} 
+              className="w-full max-w-md"
+              preload="metadata"
+              onError={(e) => console.error('Audio error:', e)}
+            />
           </>
         )}
         {audioIsLoading && !audio && <p className="text-sm text-gray-600">Audio is being generated...</p>}
@@ -61,20 +76,63 @@ export default function Chat() {
           <button
             className="bg-blue-500 p-2 text-white rounded shadow-xl hover:bg-blue-600 transition-colors"
             onClick={async () => {
-              setAudioIsLoading(true);
-              const response = await fetch("/api/audio", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  message: messages.length ? getMessageText(messages[messages.length - 1]) : "",
-                }),
-              });
-              const audioBlob = await response.blob();
-              const audioUrl = URL.createObjectURL(audioBlob);
-              setAudio(audioUrl);
-              setAudioIsLoading(false);
+              try {
+                setAudioIsLoading(true);
+                
+                // iOS Safari workaround: create audio context on user interaction
+                if (typeof window !== 'undefined' && 'AudioContext' in window) {
+                  const audioContext = new (window as any).AudioContext();
+                  if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                  }
+                }
+                
+                const response = await fetch("/api/audio", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    message: messages.length ? getMessageText(messages[messages.length - 1]) : "",
+                  }),
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Test audio loading on iOS
+                const testAudio = new Audio();
+                testAudio.src = audioUrl;
+                testAudio.preload = 'metadata';
+                
+                testAudio.oncanplaythrough = () => {
+                  setAudio(audioUrl);
+                  setAudioIsLoading(false);
+                };
+                
+                testAudio.onerror = () => {
+                  console.error('Audio failed to load');
+                  setAudioIsLoading(false);
+                  alert('Audio generation failed. Please try again.');
+                };
+                
+                // Fallback timeout
+                setTimeout(() => {
+                  if (audioIsLoading) {
+                    setAudioIsLoading(false);
+                    setAudio(audioUrl);
+                  }
+                }, 5000);
+                
+              } catch (error) {
+                console.error('Audio generation error:', error);
+                setAudioIsLoading(false);
+                alert('Audio generation failed. Please try again.');
+              }
             }}
           >
             Generate Audio
