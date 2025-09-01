@@ -41,7 +41,7 @@ export default function Chat() {
   }
   // Show image above chat messages if it exists
   const imageSection = image && (
-    <div className="flex flex-col items-center gap-4 mb-4">
+    <div className="flex flex-col items-center gap-4 mb-2">
       <Image 
         src={`data:image/jpeg;base64,${image}`} 
         alt="Generated recipe image"
@@ -84,7 +84,7 @@ export default function Chat() {
     </div>
   );
   return (
-    <div className="flex flex-col w-full h-screen max-w-md py-16 mx-auto stretch overflow-hidden">
+    <div className="flex flex-col w-full h-screen max-w-md pt-4 pb-16 mx-auto stretch overflow-hidden">
       {imageSection}
       <div
         className="overflow-auto w-full mb-8 flex-1 min-h-96"
