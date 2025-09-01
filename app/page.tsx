@@ -2,14 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import Image from "next/image";
 // If you want to specify the endpoint explicitly, you can pass a transport.
 // import { DefaultChatTransport } from "ai";
-
-type AnyPart = { type: string; text?: string };
-type TextPart = { type: 'text'; text: string };
-
-const isTextPart = (p: AnyPart): p is TextPart =>
-  p.type === 'text' && typeof p.text === 'string';
 
 // helper: turn a v5 message into plain text
 const getMessageText = (m: { parts: { type: string; text?: string }[] }) =>
@@ -20,7 +15,7 @@ const getMessageText = (m: { parts: { type: string; text?: string }[] }) =>
 
 
 export default function Chat() {
-  const { messages, status, sendMessage, error } = useChat();
+  const { messages, status, sendMessage } = useChat();
   const isLoading = status !== "ready";
   const [imageIsLoading, setImageIsLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
@@ -47,7 +42,13 @@ export default function Chat() {
   // Show image above chat messages if it exists
   const imageSection = image && (
     <div className="flex flex-col items-center gap-4 mb-4">
-      <img src={`data:image/jpeg;base64,${image}`} className="max-w-full h-auto rounded-lg shadow-lg" />
+      <Image 
+        src={`data:image/jpeg;base64,${image}`} 
+        alt="Generated recipe image"
+        width={512}
+        height={512}
+        className="max-w-full h-auto rounded-lg shadow-lg"
+      />
       <div className="flex flex-col justify-center items-center">
         {audio && (
           <>
@@ -110,9 +111,11 @@ export default function Chat() {
       </div>
       {messages.length == 0 && (
         <div className="flex flex-col justify-center items-center h-full">
-          <img 
+          <Image 
             src="/images/chef.png" 
             alt="Friendly Chef" 
+            width={128}
+            height={128}
             className="w-32 h-32 mb-4 rounded-lg shadow-lg"
           />
           <button

@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
@@ -11,7 +10,10 @@ export async function POST(req: Request) {
   try {
     const { message } = (await req.json()) as ImageRequestBody;
     if (!message || !message.trim()) {
-      return NextResponse.json({ error: "Missing 'message'" }, { status: 400 });
+      return new Response(JSON.stringify({ error: "Missing 'message'" }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const prompt = `Generate an image that describes the following recipe: ${message}`;
@@ -28,11 +30,19 @@ export async function POST(req: Request) {
 
     const b64 = res.data?.[0]?.b64_json;
     if (!b64) {
-      return NextResponse.json({ error: "No image generated" }, { status: 502 });
+      return new Response(JSON.stringify({ error: "No image generated" }), { 
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    return NextResponse.json(b64); // client: const data = await res.json(); setImage(data);
-  } catch (err) {
+    return new Response(JSON.stringify(b64), {
+      headers: { 'Content-Type': 'application/json' }
+    }); // client: const data = await res.json(); setImage(data);
+  } catch (err: unknown) {
     console.error(err);
-    return NextResponse.json({ error: "Image generation failed" }, { status: 500 });
+    return new Response(JSON.stringify({ error: "Image generation failed" }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
