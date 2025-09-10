@@ -99,10 +99,36 @@ export default function Chat() {
                 });
                 
                 if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
+                  // Try to get error details from response
+                  let errorMessage = `HTTP error! status: ${response.status}`;
+                  try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.details || errorMessage;
+                  } catch (e) {
+                    // If response is not JSON, use the status text
+                    errorMessage = response.statusText || errorMessage;
+                  }
+                  throw new Error(errorMessage);
                 }
                 
                 const audioBlob = await response.blob();
+                
+                // Check if the blob is actually audio data
+                if (audioBlob.size === 0) {
+                  throw new Error("Received empty audio file");
+                }
+                
+                // Check if the response is actually audio (not an error JSON)
+                if (audioBlob.type && !audioBlob.type.startsWith('audio/')) {
+                  const text = await audioBlob.text();
+                  try {
+                    const errorData = JSON.parse(text);
+                    throw new Error(errorData.error || errorData.details || "Audio generation failed");
+                  } catch (e) {
+                    throw new Error("Invalid audio response received");
+                  }
+                }
+                
                 const audioUrl = URL.createObjectURL(audioBlob);
                 
                 // Test audio loading on iOS
