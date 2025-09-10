@@ -81,7 +81,8 @@ export default function Chat() {
                 
                 // iOS Safari workaround: create audio context on user interaction
                 if (typeof window !== 'undefined' && 'AudioContext' in window) {
-                  const audioContext = new (window as any).AudioContext();
+                  const AudioContextClass = (window as Window & { AudioContext: typeof AudioContext }).AudioContext;
+                  const audioContext = new AudioContextClass();
                   if (audioContext.state === 'suspended') {
                     await audioContext.resume();
                   }
