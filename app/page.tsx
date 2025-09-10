@@ -168,7 +168,7 @@ export default function Chat() {
         )}
       </div>
       {messages.length == 0 && (
-        <div className="flex flex-col justify-center items-center h-full">
+        <div className="flex flex-col justify-center items-center h-screen absolute inset-0">
           <Image 
             src="/images/chef.png" 
             alt="Friendly Chef" 

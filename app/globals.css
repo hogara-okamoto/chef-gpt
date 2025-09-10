@@ -1,15 +1,14 @@
+/* global.css (Tailwind v4) */
 @import "tailwindcss";
 
+/* Your custom vars */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* optional: if you use next/font vars like --font-geist-sans */
+  --font-geist-sans: ui-sans-serif;
+  --font-geist-mono: ui-monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,8 +18,9 @@
   }
 }
 
+/* Use your vars. In v3 you can use arbitrary values like bg-[...]/text-[...] */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-[var(--background)] text-[var(--foreground)];
+  font-family: var(--font-geist-sans), system-ui, -apple-system, Segoe UI,
+    Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
