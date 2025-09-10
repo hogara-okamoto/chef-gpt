@@ -88,6 +88,10 @@ export default function Chat() {
                   }
                 }
                 
+                // Create an AbortController for timeout handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+                
                 const response = await fetch("/api/audio", {
                   method: "POST",
                   headers: {
@@ -96,7 +100,10 @@ export default function Chat() {
                   body: JSON.stringify({
                     message: messages.length ? getMessageText(messages[messages.length - 1]) : "",
                   }),
+                  signal: controller.signal,
                 });
+                
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                   // Try to get error details from response
@@ -158,7 +165,23 @@ export default function Chat() {
               } catch (error) {
                 console.error('Audio generation error:', error);
                 setAudioIsLoading(false);
-                alert('Audio generation failed. Please try again.');
+                
+                // Handle different types of errors
+                let errorMessage = 'Audio generation failed. Please try again.';
+                
+                if (error instanceof Error) {
+                  if (error.name === 'AbortError') {
+                    errorMessage = 'Audio generation timed out. The request took too long. Please try again.';
+                  } else if (error.message.includes('504')) {
+                    errorMessage = 'Server timeout. The audio generation is taking longer than expected. Please try again.';
+                  } else if (error.message.includes('500')) {
+                    errorMessage = 'Server error. Please check if your OpenAI API key is configured correctly.';
+                  } else {
+                    errorMessage = `Audio generation failed: ${error.message}`;
+                  }
+                }
+                
+                alert(errorMessage);
               }
             }}
           >

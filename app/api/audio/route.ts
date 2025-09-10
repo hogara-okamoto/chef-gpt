@@ -2,8 +2,9 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
 
-export const runtime = "edge";
-export const maxDuration = 30; // 30 seconds timeout for Vercel
+// Switch to Node.js runtime for longer timeout support
+// export const runtime = "edge";
+export const maxDuration = 60; // 60 seconds timeout for Vercel Pro, 30s for Hobby
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -30,14 +31,20 @@ export async function POST(req: NextRequest) {
 
     console.log("Generating audio for message:", message.substring(0, 100) + "...");
 
+    // Truncate message if it's too long to avoid timeout issues
+    const maxLength = 2000; // Limit to 2000 characters to reduce generation time
+    const truncatedMessage = message.length > maxLength 
+      ? message.substring(0, maxLength) + "... (recipe continues)"
+      : message;
+
     const tts = await openai.audio.speech.create({
       model: "tts-1",
       voice: "alloy",
-      input: message,
+      input: truncatedMessage,
       response_format: "mp3", // Explicitly set format
     });
 
-    // Edge runtime: avoid Buffer; use arrayBuffer
+    // Node.js runtime: can use Buffer or arrayBuffer
     const audioArrayBuffer = await tts.arrayBuffer();
     
     console.log("Audio generated successfully, size:", audioArrayBuffer.byteLength);
